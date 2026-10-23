@@ -1,0 +1,87 @@
+<section class="panel">
+  <h2>Ticket details</h2>
+  <dl class="definition-list">
+    <dt>Customer</dt>
+<dd>@Detail.Customer</dd>
+    <dt>Queue</dt>
+<dd>@Detail.Queue</dd>
+    <dt>Category</dt>
+<dd>@Detail.Category</dd>
+    <dt>Assigned to</dt>
+<dd>@(Detail.Agent ?? "Unassigned")</dd>
+  </dl>
+  @if (Staff)
+  {
+    <hr />
+    <label>Assigned agent
+      <select @bind="Assignment">
+        <option value="">Unassigned</option>
+        @foreach (var agent in Lookup?.Agents ?? [])
+        {
+          <option value="@agent.Id">@agent.Name</option>
+        }
+      </select>
+    </label>
+    <AppButton Variant="secondary small" Busy="Busy" OnClick="() => Assign.InvokeAsync(Assignment)">Update assignment</AppButton>
+    <hr />
+    <label>Subject<input @bind="Subject" minlength="5" maxlength="180" /></label>
+    <label>Priority
+      <select @bind="Priority">
+        @foreach (var priority in Enum.GetValues<TicketPriority>())
+        {
+          <option value="@priority">@priority</option>
+        }
+      </select>
+    </label>
+    <label>Category
+      <select @bind="Category">
+        @foreach (var category in Lookup?.Categories ?? [])
+        {
+          <option value="@category.Id">@category.Name</option>
+        }
+      </select>
+    </label>
+    <AppButton Variant="secondary small" Busy="Busy" OnClick="() => Update.InvokeAsync((Subject, Priority, Category))">Save details</AppButton>
+  }
+  @if (AllowedStatuses.Length > 0)
+  {
+  <hr />
+  <label>Move conversation to
+    <select @bind="NextStatus">
+      @foreach (var status in AllowedStatuses)
+      {
+        <option value="@status">@StatusBadge.Label(status)</option>
+      }
+    </select>
+  </label>
+  <AppButton Variant="primary small" Busy="Busy" Disabled="@(!TicketTransitionPolicy.CanTransition(Detail.Ticket.Status, NextStatus, Staff))"
+             OnClick="() => Transition.InvokeAsync(NextStatus)">Update status</AppButton>
+  }
+</section>
+
+@code {
+  [Parameter, EditorRequired] public TicketDetail Detail { get; set; } = default!;
+  [Parameter] public Lookups? Lookup { get; set; }
+  [Parameter] public bool Staff { get; set; }
+  [Parameter] public bool Busy { get; set; }
+  [Parameter] public EventCallback<string?> Assign { get; set; }
+  [Parameter] public EventCallback<(string Subject, TicketPriority Priority, Guid Category)> Update { get; set; }
+  private string Subject = "";
+  [Parameter] public EventCallback<TicketStatus> Transition { get; set; }
+  private string? Assignment;
+  private TicketPriority Priority;
+  private Guid Category;
+  private TicketStatus NextStatus;
+  private TicketStatus[] AllowedStatuses => Enum.GetValues<TicketStatus>().Where(s => TicketTransitionPolicy.CanTransition(Detail.Ticket.Status, s, Staff)).ToArray();
+  private TicketDetail? Previous;
+  protected override void OnParametersSet()
+  {
+    if (ReferenceEquals(Previous, Detail)) return;
+    Previous = Detail;
+    Subject = Detail.Ticket.Subject;
+    Assignment = Detail.Ticket.AssignedAgentId;
+    Priority = Detail.Ticket.Priority;
+    Category = Detail.Ticket.CategoryId;
+    NextStatus = Enum.GetValues<TicketStatus>().FirstOrDefault(s => TicketTransitionPolicy.CanTransition(Detail.Ticket.Status, s, Staff));
+  }
+}

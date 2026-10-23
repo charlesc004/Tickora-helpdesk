@@ -1,0 +1,45 @@
+@rendermode InteractiveServer
+@implements IDisposable
+@inject ICurrentUser User
+@inject IHelpdeskQueries Queries
+@inject Tickora.Web.Hubs.NotificationPulse Pulse
+@inject ILogger<NotificationBell> Logger
+<a href="/notifications" class="icon-button notification-bell" aria-label="@($"Notifications, {Count} unread")">
+<Icon Name="bell" />
+@if (Count > 0) {
+<span class="notification-count">@(Count >= 100 ? "99+" : Count.ToString())</span>
+}</a>
+@code {
+  private int Count;
+  private string? UserId;
+  private bool Disposed;
+  private readonly CancellationTokenSource Lifetime = new();
+  private CancellationToken LifetimeToken;
+  protected override async Task OnInitializedAsync()
+  {
+    LifetimeToken = Lifetime.Token;
+    await Refresh();
+    if (!Disposed && UserId is not null) { Pulse.Changed += Changed; _ = Poll(); }
+  }
+  private async Task Refresh()
+  {
+    try { var actor = await User.GetAsync(LifetimeToken); UserId = actor.Id; Count = await Queries.UnreadCountAsync(actor.Id, LifetimeToken); }
+    catch (WorkflowException) { Count = 0; }
+    catch (OperationCanceledException) when (Lifetime.IsCancellationRequested) { }
+    catch (Exception e) { Logger.LogDebug(e, "Notification badge refresh deferred"); }
+  }
+  private void Changed(string recipient) { if (recipient == UserId) _ = QueueRefresh(); }
+  private async Task QueueRefresh()
+  {
+    try { if (!Disposed) await InvokeAsync(async () => { await Refresh(); if (!Disposed) StateHasChanged(); }); }
+    catch (OperationCanceledException) { }
+    catch (ObjectDisposedException) { }
+  }
+  private async Task Poll()
+  {
+    using var timer = new PeriodicTimer(TimeSpan.FromSeconds(30));
+    try { while (await timer.WaitForNextTickAsync(LifetimeToken)) await QueueRefresh(); }
+    catch (OperationCanceledException) { }
+  }
+  public void Dispose() { if (Disposed) return; Disposed = true; Pulse.Changed -= Changed; Lifetime.Cancel(); Lifetime.Dispose(); }
+}

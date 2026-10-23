@@ -1,0 +1,32 @@
+@inject IWebHostEnvironment Environment
+    <header class="topbar">
+<div class="topbar-left">
+<label for="sidebar-toggle" class="mobile-menu" aria-label="Toggle navigation">
+<Icon Name="menu" />
+</label>
+<span class="breadcrumb">Workspace <Icon Name="chevron" Size="12" /> <strong>Support center</strong>
+</span>
+</div>
+<div class="topbar-right">
+@if (Environment.IsDevelopment()) {
+<span class="demo-label">DEMO WORKSPACE</span>
+}<NotificationBell />
+<span class="topbar-divider">
+</span>
+<AuthorizeView>
+<Authorized Context="auth">
+<a href="/settings" class="profile" aria-label="Account settings for @auth.User.Identity?.Name">
+<span class="avatar">@Initial(auth.User.Identity?.Name)</span>
+<span>
+<strong>@auth.User.Identity?.Name?.Split('@')[0]</strong>
+<small>@(auth.User.IsInRole("Admin") ? "Administrator" : auth.User.IsInRole("Agent") ? "Support agent" : "Customer")</small>
+</span>
+</a>
+</Authorized>
+<NotAuthorized>
+<a href="/account/login">Sign in</a>
+</NotAuthorized>
+</AuthorizeView>
+</div>
+</header>
+@code { private static string Initial(string? name) => string.IsNullOrEmpty(name) ? "T" : name[..1].ToUpperInvariant(); }

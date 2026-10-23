@@ -1,0 +1,6 @@
+<ol class="timeline">
+@foreach (var a in Activities.OrderByDescending(x => x.CreatedAt)) {
+<li>@a.Description<time>@a.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC</time>
+</li>
+}</ol>
+@code { [Parameter] public IReadOnlyList<TicketActivity> Activities { get; set; } = []; }

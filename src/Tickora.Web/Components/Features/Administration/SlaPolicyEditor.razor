@@ -1,0 +1,17 @@
+<section class="panel policy-card">
+  <h2>@Policy.Priority priority</h2>
+  <form @onsubmit="Submit" @onsubmit:preventDefault>
+    <label>First response · minutes<input type="number" min="1" max="100000" required @bind="Policy.FirstResponseMinutes" disabled="@Busy" /></label>
+    <label>Resolution · minutes<input type="number" min="1" max="100000" required @bind="Policy.ResolutionMinutes" disabled="@Busy" /></label>
+    <label><input type="checkbox" @bind="Policy.PauseWhileWaiting" disabled="@Busy" />Pause resolution while waiting</label>
+    <label>Business calendar<textarea rows="14" @bind="Policy.CalendarJson" disabled="@Busy" required></textarea></label>
+    <AppButton Type="submit" Busy="Busy">Save policy</AppButton>
+  </form>
+</section>
+
+@code {
+    [Parameter, EditorRequired] public SlaPolicy Policy { get; set; } = default!;
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback<SlaPolicy> Save { get; set; }
+    private Task Submit() => Busy ? Task.CompletedTask : Save.InvokeAsync(Policy);
+}

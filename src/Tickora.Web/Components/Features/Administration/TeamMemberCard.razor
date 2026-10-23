@@ -1,0 +1,35 @@
+<section class="panel team-card">
+  <span class="avatar">@Member.Name.FirstOrDefault()</span>
+  <h2>@Member.Name</h2>
+  <p>@Member.Email<br />@Member.Role · @(Member.Active ? "Active" : "Inactive")</p>
+  <label>Role
+    <select value="@Member.Role" disabled="@(Busy || Member.Id == CurrentUserId || !RendererInfo.IsInteractive)"
+            @onchange="ChangeRole">
+      <option value="Customer">Customer</option>
+      <option value="Agent">Agent</option>
+      <option value="Admin">Admin</option>
+    </select>
+  </label>
+  @foreach (var queue in Queues)
+  {
+    <label class="queue-check">
+      <input type="checkbox" checked="@Member.Queues.Contains(queue.Id)" disabled="@(Busy || !RendererInfo.IsInteractive)"
+             @onchange="e => MembershipChanged.InvokeAsync((queue.Id, e.Value is true))" />@queue.Name
+    </label>
+  }
+  @if (Member.Role != "Admin")
+  {
+    <AppButton Variant="ghost small" Busy="Busy" OnClick="() => ActiveChanged.InvokeAsync()">@(Member.Active ? "Deactivate" : "Reactivate") account</AppButton>
+  }
+</section>
+
+@code {
+    [Parameter, EditorRequired] public TeamMember Member { get; set; } = default!;
+    [Parameter] public IReadOnlyList<SupportQueue> Queues { get; set; } = [];
+    [Parameter] public string? CurrentUserId { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback<string> RoleChanged { get; set; }
+    [Parameter] public EventCallback<(Guid Queue, bool Member)> MembershipChanged { get; set; }
+    [Parameter] public EventCallback ActiveChanged { get; set; }
+    private Task ChangeRole(ChangeEventArgs e) => RoleChanged.InvokeAsync(e.Value?.ToString() ?? "");
+}

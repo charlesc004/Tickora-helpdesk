@@ -1,0 +1,46 @@
+@page "/notifications"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inherits WorkspacePage
+@inject IClock Clock
+@inject Tickora.Web.Hubs.NotificationPulse Pulse
+@inject NavigationManager Navigation
+<PageTitle>Notifications · TICKORA</PageTitle>
+<PageHeader Title="Stay in the conversation." Description="Updates from your support workspace, all in one place." Eyebrow="NOTIFICATIONS">
+<AppButton Variant="secondary" Busy="Busy" OnClick="Refresh">Refresh</AppButton>
+</PageHeader>
+<ErrorState Message="@Error" />
+<div class="filter-extras"><label><input type="checkbox" @bind="UnreadOnly" @bind:after="FilterChanged" />Unread only</label></div>
+<section class="panel">
+@if (Loading) {
+<LoadingSkeleton />
+} else if (Items?.Items.Count == 0) {
+<EmptyState Title="You're all caught up" Message="New replies and ticket updates will appear here." />
+} else if (Items is not null) { @foreach (var n in Items.Items) {
+<div class="notification-row @(n.ReadAt is null ? "unread" : "")">
+<span class="metric-icon @(n.ReadAt is null ? "indigo" : "green")">
+<Icon Name="bell" />
+</span>
+<div>
+<strong>@n.Title</strong>
+<p>@n.CreatedAt.ToString("dd MMM yyyy, HH:mm") UTC</p>
+<a href="/tickets/@n.TicketId" class="text-link">Open conversation <Icon Name="arrow" Size="14" />
+</a>
+</div>
+@if (n.ReadAt is null) {
+<AppButton Variant="ghost small" Busy="Busy" OnClick="() => MarkRead(n.Id)">Mark read</AppButton>
+} else {
+<Icon Name="check" Size="16" />
+}</div>
+} }@if (Items is not null) { <AppPagination Noun="notifications" Page="Items.Number" Size="Items.Size" Total="Items.Total" Changed="ChangePage" /> }</section>
+@code {
+  [SupplyParameterFromQuery(Name = "page")] public int? RequestedPage { get; set; }
+  [SupplyParameterFromQuery(Name = "unread")] public bool UnreadOnly { get; set; }
+  private Page<Notification>? Items;
+  protected override async Task OnParametersSetAsync() => await Refresh();
+  private async Task Refresh() => await Run(Load);
+  private async Task Load() => Items = await Queries.NotificationsAsync(Actor!.Id, LifetimeToken, RequestedPage ?? 1, 25, UnreadOnly);
+  private void ChangePage(int page) => Navigation.NavigateTo(Navigation.GetUriWithQueryParameters(new Dictionary<string, object?> { ["page"] = page, ["unread"] = UnreadOnly }));
+  private void FilterChanged() => ChangePage(1);
+  private async Task MarkRead(Guid id) => await Run(async () => { await Queries.MarkReadAsync(Actor!.Id, id, Clock.UtcNow, LifetimeToken); Pulse.Publish(Actor.Id); await Load(); });
+}

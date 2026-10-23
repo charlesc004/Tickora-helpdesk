@@ -1,0 +1,71 @@
+@page "/tickets/{Id:guid}"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inherits WorkspacePage
+@inject TicketService Service
+<PageTitle>@(Detail?.Ticket.Subject ?? "Ticket") · TICKORA</PageTitle>
+<ErrorState Message="@Error" />
+@if (Loading) {
+<LoadingSkeleton />
+}
+else if (Detail is not null) {
+<div class="detail-header">
+<PageHeader Title="@Detail.Ticket.Subject" Eyebrow="@($"TICKET TK-{Detail.Ticket.Number} · {Detail.Queue.ToUpperInvariant()}")" Description="@($"Opened by {Detail.Customer} · {Detail.Ticket.CreatedAt:dd MMM yyyy, HH:mm} UTC")">
+<StatusBadge Status="Detail.Ticket.Status" />
+<PriorityBadge Priority="Detail.Ticket.Priority" />
+</PageHeader>
+</div>
+<div class="detail-grid">
+<div>
+<section class="panel">
+<div class="panel-heading">
+<h2>Conversation</h2>
+<AppButton Variant="ghost small" Busy="Busy" OnClick="Refresh">Refresh</AppButton>
+</div>
+<div class="ticket-description" dir="auto">@Detail.Ticket.Description</div>
+<MessageThread Messages="Detail.Ticket.Messages" />
+@if (Detail.Ticket.Status is not (TicketStatus.Resolved or TicketStatus.Closed)) {
+<MessageComposer @ref="Composer" Staff="Actor!.Staff" Busy="Busy" Responses="@(Lookup?.Responses ?? [])" Send="Reply" />
+} else {
+<div class="composer">
+<p>This conversation is @(Detail.Ticket.Status.ToString().ToLowerInvariant()). Reopen it to send another reply.</p>
+</div>
+}
+</section>
+<AttachmentList Ticket="Detail.Ticket" Staff="Actor!.Staff" />
+@if (!Actor!.Staff && Detail.Ticket.Status is TicketStatus.Resolved or TicketStatus.Closed) {
+<TicketFeedback @key="Detail.Ticket.Id" Feedback="Detail.Feedback" Busy="Busy" Save="SaveFeedback" />
+}
+</div>
+<aside class="detail-sidebar">
+<TicketProperties Detail="Detail" Lookup="Lookup" Staff="Actor!.Staff" Busy="Busy" Assign="Assign" Update="Update" Transition="Transition" />
+<SlaIndicator Ticket="Detail.Ticket" />
+<section class="panel">
+<h2>Activity history</h2>
+<TicketTimeline Activities="Detail.Ticket.Activities" />
+</section>
+</aside>
+</div>
+}
+@code {
+  [Parameter] public Guid Id { get; set; }
+  private TicketDetail? Detail;
+  private Lookups? Lookup;
+  private MessageComposer? Composer;
+
+
+
+
+  private string Version => Detail is null ? "" : Convert.ToBase64String(Detail.Ticket.RowVersion);
+  protected override async Task OnParametersSetAsync() => await Refresh();
+  private async Task Reload()
+  {
+    Detail = await Queries.DetailAsync(Actor!, Id, LifetimeToken); Lookup ??= await Queries.LookupsAsync(Actor!, LifetimeToken);
+  }
+  private async Task Refresh() => await Run(Reload);
+  private async Task Reply((string Body, bool Internal, Guid Submission) input) => await Run(async () => { await Service.ReplyAsync(Id, new(input.Body, input.Internal, input.Submission, Version), LifetimeToken); Composer?.Reset(); await Reload(); });
+  private async Task Assign(string? agent) => await Run(async () => { await Service.AssignAsync(Id, new(string.IsNullOrEmpty(agent) ? null : agent, Version), LifetimeToken); await Reload(); });
+  private async Task Update((string Subject, TicketPriority Priority, Guid Category) input) => await Run(async () => { await Service.UpdateAsync(Id, new(input.Subject, input.Category, input.Priority, Version), LifetimeToken); await Reload(); });
+  private async Task Transition(TicketStatus status) => await Run(async () => { await Service.TransitionAsync(Id, new(status, Version), LifetimeToken); await Reload(); });
+  private async Task SaveFeedback((int Rating, string Comment) input) => await Run(async () => { await Service.FeedbackAsync(Id, input.Rating, input.Comment, Version, LifetimeToken); await Reload(); });
+}

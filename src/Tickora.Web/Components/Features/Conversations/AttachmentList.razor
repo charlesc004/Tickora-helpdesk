@@ -1,0 +1,30 @@
+<section class="panel form-panel">
+  <h2>Attachments</h2>
+  <p class="form-hint">Protected files · PNG, JPEG, PDF or UTF-8 text · up to 5 MB</p>
+  <div class="attachments">
+    @foreach (var file in Ticket.Attachments)
+    {
+      <a href="/api/v1/tickets/@Ticket.Id/attachments/@file.Id">
+        <Icon Name="download" Size="15" />@file.FileName
+        <span class="muted">@((file.Length / 1024.0).ToString("0.0")) KB @(file.Internal ? "· Internal" : "")</span>
+      </a>
+    }
+  </div>
+  <form method="post" action="/api/v1/tickets/@Ticket.Id/attachments" enctype="multipart/form-data" data-enhance="false">
+    <AntiforgeryToken />
+    <input type="hidden" name="version" value="@Convert.ToBase64String(Ticket.RowVersion)" />
+    <input type="hidden" name="redirect" value="true" />
+    <label>Choose a file<input type="file" name="file" accept=".png,.jpg,.jpeg,.pdf,.txt" required />
+</label>
+    @if (Staff)
+    {
+      <label>
+<input type="checkbox" name="internal" value="true" />Private team attachment</label>
+    }
+    <button class="button secondary" type="submit">Upload attachment</button>
+  </form>
+</section>
+@code {
+  [Parameter, EditorRequired] public Ticket Ticket { get; set; } = default!;
+  [Parameter] public bool Staff { get; set; }
+}

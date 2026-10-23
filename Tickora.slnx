@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Tickora.Application/Tickora.Application.csproj" />
+    <Project Path="src/Tickora.Domain/Tickora.Domain.csproj" />
+    <Project Path="src/Tickora.Infrastructure/Tickora.Infrastructure.csproj" />
+    <Project Path="src/Tickora.Web/Tickora.Web.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Tickora.E2ETests/Tickora.E2ETests.csproj" />
+    <Project Path="tests/Tickora.IntegrationTests/Tickora.IntegrationTests.csproj" />
+    <Project Path="tests/Tickora.UnitTests/Tickora.UnitTests.csproj" />
+  </Folder>
+</Solution>

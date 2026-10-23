@@ -1,0 +1,85 @@
+@page "/admin/team"
+@attribute [Authorize(Policy = "Admin")]
+@rendermode InteractiveServer
+@inherits WorkspacePage
+@inject IAdministration Admin
+<PageTitle>Team & queues · TICKORA</PageTitle>
+<PageHeader Title="Great support is a team effort." Description="The people and queues behind every helpful conversation." Eyebrow="TEAM MANAGEMENT" />
+<ErrorState Message="@Error" />
+@if (Success is not null) {
+<div class="alert success">@Success</div>
+}
+@if (Loading) {
+<LoadingSkeleton />
+} else {
+<div class="team-grid">
+@foreach (var member in Members) {
+<TeamMemberCard @key="member.Id" Member="member" Queues="Queues" CurrentUserId="Actor!.Id" Busy="Busy"
+                RoleChanged="role => ChangeRole(member.Id, role)"
+                MembershipChanged="change => SetMembership(member.Id, change.Queue, change.Member)"
+                ActiveChanged="() => ToggleActive(member)" />
+}</div>
+<div class="create-layout">
+<section class="panel form-panel">
+<h2>Add a support agent</h2>
+<p class="form-hint">Share the initial password through a secure channel. Ask the agent to change it after signing in.</p>
+<form @onsubmit="CreateAgent" @onsubmit:preventDefault>
+<label>Name<input @bind="Name" required maxlength="120" />
+</label>
+<label>Email<input @bind="Email" type="email" required />
+</label>
+<label>Initial password<input @bind="Password" type="password" required minlength="12" autocomplete="new-password" />
+</label>
+<AppButton Type="submit" Busy="Busy">Create agent account</AppButton>
+</form>
+</section>
+<section class="panel form-panel">
+<h2>Support queues</h2>
+@foreach (var queue in Queues) {
+<div class="queue-stat">
+<div>
+<input aria-label="Queue name" @bind="queue.Name" maxlength="100" />
+<AppButton Variant="ghost small" Busy="Busy" OnClick="() => SaveQueue(queue)">Save name</AppButton>
+<AppButton Variant="ghost small" Busy="Busy" OnClick="() => ToggleQueue(queue)">@(queue.Active ? "Deactivate" : "Activate")</AppButton>
+</div>
+</div>
+}<form @onsubmit="CreateQueue" @onsubmit:preventDefault>
+<label>New queue name<input @bind="QueueName" required minlength="2" maxlength="100" />
+</label>
+<AppButton Type="submit" Variant="secondary" Busy="Busy">Create queue</AppButton>
+</form>
+<hr />
+<h2>Ticket categories</h2>
+@foreach (var category in Categories) {
+<div class="category-editor">
+<input aria-label="Category name" @bind="category.Name" maxlength="100" />
+<label>
+<input type="checkbox" @bind="category.Active" />Active</label>
+<AppButton Variant="ghost small" Busy="Busy" OnClick="() => SaveCategory(category)">Save</AppButton>
+</div>
+}<form @onsubmit="CreateCategory" @onsubmit:preventDefault>
+<label>New ticket category<input @bind="CategoryName" required minlength="2" maxlength="100" />
+</label>
+<AppButton Type="submit" Variant="secondary" Busy="Busy">Create category</AppButton>
+</form>
+</section>
+</div>
+}
+@code {
+  private IReadOnlyList<TeamMember> Members = [];
+  private IReadOnlyList<SupportQueue> Queues = [];
+  private IReadOnlyList<TicketCategory> Categories = [];
+  private string Name = "", Email = "", Password = "", QueueName = "", CategoryName = "";
+  private string? Success;
+  protected override async Task OnInitializedAsync() => await Run(Reload);
+  private async Task Reload() { Members = await Admin.TeamAsync(LifetimeToken); Queues = await Admin.QueuesAsync(LifetimeToken); Categories = await Admin.CategoriesAsync(LifetimeToken); }
+  private async Task ChangeRole(string id, string? role) => await Run(async () => { await Admin.SetRoleAsync(id, role ?? "", LifetimeToken); await Reload(); });
+  private async Task SaveQueue(SupportQueue queue) => await Run(async () => { await Admin.SaveQueueAsync(queue.Id, queue.Name, queue.Active, Convert.ToBase64String(queue.RowVersion), LifetimeToken); await Reload(); });
+  private async Task SaveCategory(TicketCategory category) => await Run(async () => { await Admin.SaveCategoryAsync(category.Id, category.Name, category.Active, LifetimeToken, Convert.ToBase64String(category.RowVersion)); await Reload(); });
+  private async Task SetMembership(string id, Guid queue, bool member) => await Run(async () => { await Admin.SetMembershipAsync(id, queue, member, LifetimeToken); await Reload(); });
+  private async Task ToggleActive(TeamMember member) => await Run(async () => { await Admin.SetActiveAsync(member.Id, !member.Active, LifetimeToken); await Reload(); });
+  private async Task ToggleQueue(SupportQueue queue) => await Run(async () => { await Admin.SaveQueueAsync(queue.Id, queue.Name, !queue.Active, Convert.ToBase64String(queue.RowVersion), LifetimeToken); await Reload(); });
+  private async Task CreateQueue() => await Run(async () => { await Admin.SaveQueueAsync(null, QueueName, true, null, LifetimeToken); QueueName = ""; await Reload(); });
+  private async Task CreateCategory() => await Run(async () => { await Admin.SaveCategoryAsync(null, CategoryName, true, LifetimeToken); CategoryName = ""; Success = "Category created."; await Reload(); });
+  private async Task CreateAgent() => await Run(async () => { await Admin.CreateAgentAsync(Name, Email, Password, LifetimeToken); Name = Email = Password = ""; Success = "Agent created. Select their queue memberships below."; await Reload(); });
+}

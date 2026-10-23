@@ -1,0 +1,35 @@
+@page "/settings"
+@attribute [Authorize]
+@inherits WorkspacePage
+<PageTitle>Account settings · TICKORA</PageTitle>
+<PageHeader Title="Your account, your space." Description="Keep your account secure and your conversations connected." Eyebrow="ACCOUNT SETTINGS" />
+<ErrorState Message="@(QueryError ?? Error)" />
+@if (Saved == "true") {
+<div class="alert success">Your password has been updated.</div>
+}
+<section class="panel form-panel settings-card">
+<h2>Change password</h2>
+<p class="form-hint">Changing your password invalidates other sessions when they are next validated.</p>
+<form method="post" action="/account/actions/change-password" data-enhance="false">
+<AntiforgeryToken />
+<label>Current password<input name="CurrentPassword" type="password" required autocomplete="current-password" />
+</label>
+<label>New password<input name="NewPassword" type="password" required minlength="12" autocomplete="new-password" />
+</label>
+<p class="form-hint">At least 12 characters, with uppercase, lowercase, a number, and a symbol.</p>
+<button class="button primary" type="submit">Update password</button>
+</form>
+</section>
+<section class="panel form-panel settings-card">
+<h2>End this session</h2>
+<p class="form-hint">Sign out when you're done, especially on a shared device.</p>
+<form method="post" action="/account/actions/logout" data-enhance="false">
+<AntiforgeryToken />
+<button class="button secondary" type="submit">
+<Icon Name="logout" Size="16" />Sign out</button>
+</form>
+</section>
+@code {
+  [SupplyParameterFromQuery(Name = "error")] public string? QueryError { get; set; }
+  [SupplyParameterFromQuery] public string? Saved { get; set; }
+}

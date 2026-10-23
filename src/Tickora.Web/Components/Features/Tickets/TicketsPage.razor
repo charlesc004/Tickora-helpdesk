@@ -1,0 +1,125 @@
+@page "/tickets"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inherits WorkspacePage
+@inject NavigationManager Navigation
+<PageTitle>Tickets · TICKORA</PageTitle>
+<PageHeader Title="Conversations, organized." Description="The right context. The next step. Better support." Eyebrow="TICKET WORKSPACE">
+<a href="/tickets/new" class="button primary">
+<Icon Name="plus" Size="17" />Create ticket</a>
+</PageHeader>
+<ErrorState Message="@Error" />
+<section class="panel">
+  <div class="tabs">
+<button class="@(View == "all" ? "active" : "")" @onclick='() => SetView("all")'>All tickets</button>
+<button class="@(View == "open" ? "active" : "")" @onclick='() => SetView("open")'>Open</button>
+<button class="@(View == "waiting" ? "active" : "")" @onclick='() => SetView("waiting")'>Waiting for customer</button>
+@if (Actor?.Staff == true) {
+<button class="@(View == "unassigned" ? "active" : "")" @onclick='() => SetView("unassigned")'>Unassigned</button>
+<button class="@(View == "mine" ? "active" : "")" @onclick='() => SetView("mine")'>Assigned to me</button>
+}</div>
+  <div class="filters">
+<form @onsubmit="SearchNow" @onsubmit:preventDefault class="search-field">
+<Icon Name="search" Size="18" />
+<input aria-label="Search tickets" placeholder="Search by subject or ticket number…" @bind="SearchText" />
+<button type="submit" class="button ghost small">Search</button>
+</form>
+<select aria-label="Priority" @bind="PriorityText" @bind:after="FilterChanged">
+<option value="">All priorities</option>
+@foreach (var p in Enum.GetValues<TicketPriority>()) {
+<option value="@p">@p</option>
+}</select>
+<select aria-label="Support queue" @bind="QueueText" @bind:after="FilterChanged">
+<option value="">All queues</option>
+@foreach (var q in Lookup?.Queues ?? []) {
+<option value="@q.Id">@q.Name</option>
+}</select>
+<select aria-label="Sort tickets" @bind="Sort" @bind:after="FilterChanged">
+<option value="updated">Recently updated</option>
+<option value="oldest">Oldest first</option>
+<option value="priority">Highest priority</option>
+</select>
+</div>
+  <div class="filter-extras">
+<label>
+<input type="checkbox" @bind="Overdue" @bind:after="FilterChanged" />SLA overdue</label>
+<AppButton Variant="ghost small" OnClick="Reset">Reset filters</AppButton>
+<span>@(Results?.Total ?? 0) conversations</span>
+</div>
+  <details class="advanced-filters">
+<summary>More filters</summary>
+<div class="filters">
+<label>Status<select @bind="StatusText" @bind:after="FilterChanged">
+<option value="">All statuses</option>
+@foreach (var s in Enum.GetValues<TicketStatus>()) {
+<option value="@s">@StatusBadge.Label(s)</option>
+}</select>
+</label>
+<label>Category<select @bind="CategoryText" @bind:after="FilterChanged">
+<option value="">All categories</option>
+@foreach (var c in Lookup?.Categories ?? []) {
+<option value="@c.Id">@c.Name</option>
+}</select>
+</label>
+@if (Actor?.Staff == true) {
+<label>Agent<select @bind="AgentText" @bind:after="FilterChanged">
+<option value="">All agents</option>
+@foreach (var a in Lookup?.Agents ?? []) {
+<option value="@a.Id">@a.Name</option>
+}</select>
+</label>
+}<label>Created from · UTC<input type="date" value="@FromText" @onchange="FromChanged" />
+</label>
+<label>Created through · UTC<input type="date" value="@ThroughText" @onchange="ThroughChanged" />
+</label>
+</div>
+</details>
+  @if (Loading) {
+<LoadingSkeleton />
+} else if (Results is not null) {
+<TicketTable Rows="Results.Items" />
+<AppPagination Page="Results.Number" Size="Results.Size" Total="Results.Total" Changed="ChangePage" />
+}
+</section>
+@code {
+  [SupplyParameterFromQuery(Name = "search")] public string? SearchQuery { get; set; }
+  [SupplyParameterFromQuery(Name = "mine")] public bool MineQuery { get; set; }
+  [SupplyParameterFromQuery(Name = "view")] public string? ViewQuery { get; set; }
+  [SupplyParameterFromQuery(Name = "priority")] public string? PriorityQuery { get; set; }
+  [SupplyParameterFromQuery(Name = "queue")] public string? QueueQuery { get; set; }
+  [SupplyParameterFromQuery(Name = "page")] public int? PageQuery { get; set; }
+  [SupplyParameterFromQuery(Name = "overdue")] public bool OverdueQuery { get; set; }
+  [SupplyParameterFromQuery(Name = "sort")] public string? SortQuery { get; set; }
+  [SupplyParameterFromQuery(Name = "status")] public string? StatusQuery { get; set; }
+  [SupplyParameterFromQuery(Name = "category")] public string? CategoryQuery { get; set; }
+  [SupplyParameterFromQuery(Name = "agent")] public string? AgentQuery { get; set; }
+  [SupplyParameterFromQuery(Name = "from")] public string? FromQuery { get; set; }
+  [SupplyParameterFromQuery(Name = "through")] public string? ThroughQuery { get; set; }
+  private string SearchText = "", View = "all", PriorityText = "", QueueText = "", Sort = "updated";
+  private string StatusText = "", CategoryText = "", AgentText = "", FromText = "", ThroughText = "";
+  private bool Overdue;
+  private int PageNumber = 1;
+  private Page<TicketRow>? Results;
+  private Lookups? Lookup;
+  protected override async Task OnParametersSetAsync()
+  {
+    SearchText = SearchQuery ?? ""; View = MineQuery ? "mine" : ViewQuery ?? "all"; PriorityText = PriorityQuery ?? "";
+    QueueText = QueueQuery ?? ""; PageNumber = PageQuery ?? 1; Overdue = OverdueQuery; Sort = SortQuery ?? "updated";
+    StatusText = StatusQuery ?? ""; CategoryText = CategoryQuery ?? ""; AgentText = AgentQuery ?? ""; FromText = FromQuery ?? ""; ThroughText = ThroughQuery ?? "";
+    await Load();
+  }
+  private async Task Load() => await Run(async () => { Lookup ??= await Queries.LookupsAsync(Actor!, LifetimeToken); Results = await Queries.TicketsAsync(Actor!, new(SearchText,
+    View == "open" ? TicketStatus.Open : View == "waiting" ? TicketStatus.WaitingForCustomer : Enum.TryParse<TicketStatus>(StatusText, out var status) ? status : null,
+    Enum.TryParse<TicketPriority>(PriorityText, out var p) ? p : null, Guid.TryParse(QueueText, out var q) ? q : null,
+    Category: Guid.TryParse(CategoryText, out var category) ? category : null, Agent: AgentText.Length == 0 ? null : AgentText,
+    Mine: View == "mine", Unassigned: View == "unassigned", Overdue: Overdue, From: Date(FromText), To: Date(ThroughText)?.AddDays(1), Page: PageNumber, Sort: Sort), LifetimeToken); });
+  private static DateTimeOffset? Date(string value) => DateOnly.TryParse(value, out var date) ? new DateTimeOffset(date.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero) : null;
+  private void Navigate() => Navigation.NavigateTo(Navigation.GetUriWithQueryParameters(new Dictionary<string, object?> { ["search"] = SearchText.Length == 0 ? null : SearchText, ["view"] = View == "all" ? null : View, ["mine"] = null, ["priority"] = PriorityText.Length == 0 ? null : PriorityText, ["queue"] = QueueText.Length == 0 ? null : QueueText, ["page"] = PageNumber, ["overdue"] = Overdue ? true : null, ["sort"] = Sort, ["status"] = StatusText.Length == 0 ? null : StatusText, ["category"] = CategoryText.Length == 0 ? null : CategoryText, ["agent"] = AgentText.Length == 0 ? null : AgentText, ["from"] = FromText.Length == 0 ? null : FromText, ["through"] = ThroughText.Length == 0 ? null : ThroughText }));
+  private Task SearchNow() { PageNumber = 1; Navigate(); return Task.CompletedTask; }
+  private Task FilterChanged() => SearchNow();
+  private Task FromChanged(ChangeEventArgs e) { FromText = e.Value?.ToString() ?? ""; return FilterChanged(); }
+  private Task ThroughChanged(ChangeEventArgs e) { ThroughText = e.Value?.ToString() ?? ""; return FilterChanged(); }
+  private void SetView(string view) { View = view; StatusText = ""; PageNumber = 1; Navigate(); }
+  private void ChangePage(int page) { PageNumber = page; Navigate(); }
+  private void Reset() { SearchText = StatusText = CategoryText = AgentText = FromText = ThroughText = ""; View = "all"; PriorityText = ""; QueueText = ""; Overdue = false; Sort = "updated"; PageNumber = 1; Navigate(); }
+}

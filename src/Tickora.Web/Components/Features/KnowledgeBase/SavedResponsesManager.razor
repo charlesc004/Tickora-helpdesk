@@ -1,0 +1,51 @@
+@inherits WorkspacePage
+@inject IAdministration Admin
+
+<section class="panel form-panel response-manager" aria-label="Saved responses">
+  <h2>Saved responses</h2>
+  <p class="form-hint">Reusable replies for your team. Archived responses stay out of the composer.</p>
+  <ErrorState Message="@Error" />
+  @if (Saved) { <div class="alert success">Response saved.</div> }
+  @if (Loading) { <LoadingSkeleton /> }
+  else
+  {
+    @foreach (var response in Responses)
+    {
+      <div class="article-suggestion" @key="response.Id">
+        <span>@response.Title @if (!response.Active) { <small class="muted">Archived</small> }</span>
+        <AppButton Variant="ghost small" Busy="Busy" OnClick="() => Edit(response)">Edit</AppButton>
+      </div>
+    }
+    <hr />
+    <h3>@(Editing.RowVersion.Length == 0 ? "New response" : "Edit response")</h3>
+    <form @onsubmit="Save" @onsubmit:preventDefault>
+      <label>Response title<input @bind="Editing.Title" required minlength="2" maxlength="120" /></label>
+      <label>Response text<textarea @bind="Editing.Body" required maxlength="10000" rows="5"></textarea></label>
+      <label><input type="checkbox" @bind="Editing.Active" />Active in composer</label>
+      <div class="form-actions">
+        <AppButton Variant="secondary small" OnClick="NewResponse">New response</AppButton>
+        <AppButton Type="submit" Variant="primary small" Busy="Busy">Save response</AppButton>
+      </div>
+    </form>
+  }
+</section>
+
+@code {
+  private IReadOnlyList<CannedResponse> Responses = [];
+  private CannedResponse Editing = new();
+  private bool Saved;
+  protected override async Task OnInitializedAsync() => await Run(async () => Responses = await Admin.ResponsesAsync(LifetimeToken));
+  private void NewResponse() { Editing = new(); Saved = false; }
+  private void Edit(CannedResponse response)
+  {
+    Editing = new() { Id = response.Id, Title = response.Title, Body = response.Body, Active = response.Active, RowVersion = response.RowVersion };
+    Saved = false;
+  }
+  private async Task Save() => await Run(async () =>
+  {
+    if (Editing.RowVersion.Length == 0) await Admin.CreateResponseAsync(Editing.Title, Editing.Body, Editing.Active, LifetimeToken);
+    else await Admin.UpdateResponseAsync(Editing, LifetimeToken);
+    Responses = await Admin.ResponsesAsync(LifetimeToken);
+    Editing = new(); Saved = true;
+  });
+}

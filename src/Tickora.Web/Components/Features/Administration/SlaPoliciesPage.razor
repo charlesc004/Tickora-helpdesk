@@ -1,0 +1,26 @@
+@page "/admin/sla"
+@attribute [Authorize(Policy = "Admin")]
+@rendermode InteractiveServer
+@inherits WorkspacePage
+@inject IAdministration Admin
+<PageTitle>SLA policies · TICKORA</PageTitle>
+<PageHeader Title="Set expectations. Keep promises." Description="Business-time targets that give every conversation a clear next step." Eyebrow="SERVICE LEVEL POLICIES" />
+<ErrorState Message="@Error" />
+@if (Saved) {
+<div class="alert success">Policy saved. Existing tickets keep their historical policy snapshot.</div>
+}
+@if (Loading) {
+<LoadingSkeleton />
+} else {
+<div class="alert">Calendar JSON uses IANA time zones, ISO dates, and .NET weekday numbers (Sunday = 0). Targets are business minutes. Waiting pauses resolution only.</div>
+<div class="team-grid">
+@foreach (var p in Policies) {
+<SlaPolicyEditor @key="p.Priority" Policy="p" Busy="Busy" Save="Save" />
+}</div>
+}
+@code {
+  private IReadOnlyList<SlaPolicy> Policies = [];
+  private bool Saved;
+  protected override async Task OnInitializedAsync() => await Run(async () => Policies = await Admin.PoliciesAsync(LifetimeToken));
+  private async Task Save(SlaPolicy policy) => await Run(async () => { await Admin.SavePolicyAsync(policy, LifetimeToken); Policies = await Admin.PoliciesAsync(LifetimeToken); Saved = true; });
+}

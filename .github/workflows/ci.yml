@@ -1,0 +1,52 @@
+name: TICKORA validation
+on:
+  push:
+  pull_request:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      SQL_PASSWORD: CI-Only-Sql-Password!2026
+      DEMO_PASSWORD: CI-Only-Demo-Password!2026
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+      - run: dotnet restore Tickora.slnx
+      - run: dotnet build Tickora.slnx -c Release --no-restore
+      - run: dotnet format Tickora.slnx --verify-no-changes --no-restore
+      - run: dotnet test tests/Tickora.UnitTests -c Release --no-build
+      - run: dotnet test tests/Tickora.IntegrationTests -c Release --no-build
+        env:
+          TICKORA_TESTCONTAINERS: "1"
+      - run: dotnet publish src/Tickora.Web -c Release --no-restore -o /tmp/tickora-publish
+      - run: docker compose config --quiet
+        env:
+          SQL_PASSWORD: CI-Only-Sql-Password!2026
+          DEMO_PASSWORD: CI-Only-Demo-Password!2026
+      - run: docker compose build tickora-web
+      - run: docker compose up -d tickora-sqlserver --wait
+        env:
+          SQL_PASSWORD: CI-Only-Sql-Password!2026
+          DEMO_PASSWORD: CI-Only-Demo-Password!2026
+      - run: docker compose run --rm tickora-web --migrate --seed
+        env:
+          SQL_PASSWORD: CI-Only-Sql-Password!2026
+          DEMO_PASSWORD: CI-Only-Demo-Password!2026
+      - run: docker compose up -d tickora-web --wait
+        env:
+          SQL_PASSWORD: CI-Only-Sql-Password!2026
+          DEMO_PASSWORD: CI-Only-Demo-Password!2026
+      - run: pwsh tests/Tickora.E2ETests/bin/Release/net10.0/playwright.ps1 install --with-deps chromium
+      - run: dotnet test tests/Tickora.E2ETests -c Release --no-build
+        env:
+          TICKORA_E2E: "1"
+          TICKORA_SMOKE: "1"
+          Demo__Password: CI-Only-Demo-Password!2026
+      - if: always()
+        run: docker compose down
+        env:
+          SQL_PASSWORD: CI-Only-Sql-Password!2026
+          DEMO_PASSWORD: CI-Only-Demo-Password!2026

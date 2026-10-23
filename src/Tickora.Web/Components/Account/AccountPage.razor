@@ -1,0 +1,58 @@
+@page "/account/login"
+@page "/account/register"
+@page "/account/forgot"
+@page "/account/reset"
+@layout PublicLayout
+@inject NavigationManager Navigation
+<PageTitle>@Title · TICKORA</PageTitle>
+<div class="auth-card">
+<div class="eyebrow">GOOD SUPPORT STARTS HERE</div>
+<h1>@Title</h1>
+<p>@Description</p>
+<ErrorState Message="@Error" />
+@if (Sent == "true") {
+<div class="alert success">If this account exists, password reset instructions have been sent.</div>
+}@if (Message is not null) {
+<div class="alert success">@Message</div>
+}
+<form method="post" action="@($"/account/actions/{Mode}")" data-enhance="false">
+<AntiforgeryToken />
+  @if (Mode == "register") {
+<label>Your name<input name="Name" required minlength="2" maxlength="120" autocomplete="name" placeholder="Alex Morgan" />
+</label>
+}
+  <label>Email address<input type="email" name="Email" required maxlength="256" autocomplete="email" value="@Email" placeholder="you@company.com" />
+</label>
+  @if (Mode is "login" or "register" or "reset") {
+<label>@(Mode == "reset" ? "New password" : "Password")<input name="Password" type="password" required minlength="@(Mode == "login" ? 1 : 12)" autocomplete="@(Mode == "login" ? "current-password" : "new-password")" placeholder="@(Mode == "login" ? "Your password" : "At least 12 characters")" />
+</label>
+}
+  @if (Mode == "reset") {
+<input type="hidden" name="Token" value="@Token" />
+}
+  @if (Mode == "register") {
+<p class="form-hint">Use at least 12 characters, with uppercase, lowercase, a number, and a symbol. Your account will be created as a customer.</p>
+}
+  <button class="button primary" type="submit">@(Mode == "login" ? "Sign in to your workspace" : Mode == "register" ? "Create your account" : Mode == "forgot" ? "Send reset instructions" : "Update password")<Icon Name="arrow" Size="16" />
+</button>
+</form>
+<div class="auth-links">
+@if (Mode == "login") {
+<a href="/account/register">Create an account</a>
+<a href="/account/forgot">Forgot password?</a>
+} else {
+<a href="/account/login">← Back to sign in</a>
+}</div>
+<div class="auth-note">
+<Icon Name="lock" Size="12" /> A secure space for better conversations.</div>
+</div>
+@code {
+  [SupplyParameterFromQuery] public string? Error { get; set; }
+  [SupplyParameterFromQuery] public string? Message { get; set; }
+  [SupplyParameterFromQuery] public string? Sent { get; set; }
+  [SupplyParameterFromQuery] public string? Email { get; set; }
+  [SupplyParameterFromQuery] public string? Token { get; set; }
+  private string Mode => new Uri(Navigation.Uri).AbsolutePath.Split('/').Last();
+  private string Title => Mode switch { "register" => "A helping hand awaits.", "forgot" => "Let's get you back in.", "reset" => "A fresh start.", _ => "Welcome back." };
+  private string Description => Mode switch { "register" => "Create an account to keep your support conversations together.", "forgot" => "Enter your email for password reset instructions.", "reset" => "Choose a strong password for your account.", _ => "Sign in to pick up the conversation." };
+}

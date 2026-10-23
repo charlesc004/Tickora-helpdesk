@@ -1,0 +1,31 @@
+<section class="panel form-panel">
+  <h2>How did we do?</h2>
+  @if (Feedback is not null)
+  {
+    <p>Thank you. You rated this conversation @Feedback.Rating / 5.</p>
+  }
+  else
+  {
+    <form @onsubmit="Submit" @onsubmit:preventDefault>
+      <label>Rating
+        <select @bind="Rating" disabled="@Busy">
+          @for (var n = 5; n >= 1; n--)
+          {
+            <option value="@n">@n / 5</option>
+          }
+        </select>
+      </label>
+      <label>Anything else?<textarea dir="auto" @bind="Comment" maxlength="1000" disabled="@Busy"></textarea></label>
+      <AppButton Type="submit" Busy="Busy">Send feedback</AppButton>
+    </form>
+  }
+</section>
+
+@code {
+    [Parameter] public CustomerFeedback? Feedback { get; set; }
+    [Parameter] public bool Busy { get; set; }
+    [Parameter] public EventCallback<(int Rating, string Comment)> Save { get; set; }
+    private int Rating = 5;
+    private string Comment = "";
+    private Task Submit() => Busy ? Task.CompletedTask : Save.InvokeAsync((Rating, Comment));
+}

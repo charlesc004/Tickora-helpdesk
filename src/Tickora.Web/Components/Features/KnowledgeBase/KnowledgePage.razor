@@ -1,0 +1,79 @@
+@page "/knowledge"
+@page "/knowledge/{Slug}"
+@rendermode InteractiveServer
+@inherits WorkspacePage
+@inject AuthenticationStateProvider Authentication
+@inject NavigationManager Navigation
+<PageTitle>Help center · TICKORA</PageTitle>
+<ErrorState Message="@Error" />
+@if (Loading) {
+<LoadingSkeleton />
+}
+else if (Article is not null) {
+  <a href="/knowledge" class="text-link">← Back to the help center</a>
+<article class="panel article-content">
+<span class="badge">@Article.Category</span>
+<h1>@Article.Title</h1>
+<p>@Article.Summary</p>
+<small class="muted">Updated @Article.UpdatedAt.ToString("dd MMM yyyy")</small>
+<pre>@Article.Body</pre>
+<hr />
+<a href="/tickets/new" class="button primary">Still need a hand? Contact support <Icon Name="arrow" Size="16" />
+</a>
+</article>
+<section class="panel article-content"><h2>Related guides</h2>
+@foreach (var related in Related) { <a class="article-suggestion" href="/knowledge/@related.Slug">@related.Title<Icon Name="arrow" Size="15" /></a> }
+</section>
+} else if (Slug is not null) {
+<EmptyState Title="Article not found" Message="Try searching the help center for another guide." />
+}
+else {
+  <div class="knowledge-hero">
+<div class="eyebrow">THE TICKORA HELP CENTER</div>
+<h1>A little guidance goes a long way.</h1>
+<p>Answers, how-tos, and a helping hand when you need it.</p>
+<form class="search-field" @onsubmit="Search" @onsubmit:preventDefault>
+<Icon Name="search" />
+<input aria-label="Search knowledge base" placeholder="What can we help you with?" @bind="Term" />
+<AppButton Variant="ghost" Type="submit">Search</AppButton>
+</form>
+</div>
+  @if (Actor?.Staff == true) {
+<div class="heading-actions" style="justify-content:flex-end;margin-bottom:20px">
+<a href="/knowledge/manage" class="button secondary">Manage articles</a>
+</div>
+}
+  @if (Articles.Count == 0) {
+<EmptyState Title="No articles found" Message="Try a different search, or get in touch with the team." />
+}
+  <div class="knowledge-grid">
+@foreach (var a in Articles) {
+<a href="/knowledge/@a.Slug" class="panel article-card">
+<span class="metric-icon indigo">
+<Icon Name="book" />
+</span>
+<h2>@a.Title</h2>
+<p>@a.Summary</p>
+<span class="text-link">Read the guide <Icon Name="arrow" Size="15" />
+</span>
+<small>@a.Category</small>
+</a>
+}</div>
+}
+@code {
+  [Parameter] public string? Slug { get; set; }
+  [SupplyParameterFromQuery] public string? Q { get; set; }
+  private string Term = "";
+  private IReadOnlyList<KnowledgeArticle> Articles = [];
+  private KnowledgeArticle? Article;
+  private IReadOnlyList<KnowledgeArticle> Related => Article is null ? [] : ArticleSuggestions.Rank(Articles.Where(a => a.Id != Article.Id), Article.Title, Article.Category).Take(3).ToList();
+  protected override async Task OnParametersSetAsync()
+  {
+    Term = Q ?? "";
+    try { if ((await Authentication.GetAuthenticationStateAsync()).User.Identity?.IsAuthenticated == true) Actor = await CurrentUser.GetAsync(LifetimeToken); Articles = await Queries.ArticlesAsync(Slug is null ? Q : null, false, Actor, LifetimeToken); Article = Slug is null ? null : await Queries.ArticleAsync(Slug, LifetimeToken); }
+    catch (OperationCanceledException) when (LifetimeToken.IsCancellationRequested) { }
+    catch (Exception e) { Logger.LogError(e, "Knowledge query failed"); Error = "The help center is temporarily unavailable. Please try again."; }
+    finally { Loading = false; }
+  }
+  private void Search() => Navigation.NavigateTo("/knowledge?q=" + Uri.EscapeDataString(Term));
+}

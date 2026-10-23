@@ -1,0 +1,11 @@
+<div class="empty-state">
+<span class="empty-icon">
+<Icon Name="inbox" Size="28" />
+</span>
+<h3>@Title</h3>
+<p>@Message</p>@ChildContent</div>
+@code {
+  [Parameter] public string Title { get; set; } = "You're all caught up";
+  [Parameter] public string Message { get; set; } = "No records match this view.";
+  [Parameter] public RenderFragment? ChildContent { get; set; }
+}

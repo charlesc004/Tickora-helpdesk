@@ -1,0 +1,37 @@
+<div class="composer">
+<form @onsubmit="Submit" @onsubmit:preventDefault>
+  @if (Staff && Responses.Count > 0) {
+<label>Insert a saved response<select @onchange="InsertResponse">
+<option value="">Choose a response…</option>
+@foreach (var r in Responses) {
+<option value="@r.Id">@r.Title</option>
+}</select>
+</label>
+}
+  <textarea aria-label="Message" dir="auto" rows="5" maxlength="10000" placeholder="Write a thoughtful reply…" @bind="Body" @bind:event="oninput" disabled="@(Busy || !RendererInfo.IsInteractive)">
+</textarea>
+  <div class="composer-controls">
+<div>
+@if (Staff) {
+<label>
+<input type="checkbox" @bind="Internal" disabled="@(Busy || !RendererInfo.IsInteractive)" />Internal note · visible to your team only</label>
+} else {
+<small class="muted">Your support team is here to help.</small>
+}</div>
+<AppButton Type="submit" Busy="Busy" Disabled="@string.IsNullOrWhiteSpace(Body)">@(Internal ? "Add note" : "Send reply")<Icon Name="arrow" Size="15" />
+</AppButton>
+</div>
+</form>
+</div>
+@code {
+  [Parameter] public bool Staff { get; set; }
+  [Parameter] public bool Busy { get; set; }
+  [Parameter] public IReadOnlyList<CannedResponse> Responses { get; set; } = [];
+  [Parameter] public EventCallback<(string Body, bool Internal, Guid Submission)> Send { get; set; }
+  private string Body = "";
+  private bool Internal;
+  private Guid Submission = Guid.NewGuid();
+  private async Task Submit() { if (!Busy && !string.IsNullOrWhiteSpace(Body)) await Send.InvokeAsync((Body, Internal, Submission)); }
+  public void Reset() { Body = ""; Submission = Guid.NewGuid(); }
+  private void InsertResponse(ChangeEventArgs e) { var response = Responses.SingleOrDefault(x => x.Id.ToString() == e.Value?.ToString()); if (response is not null) Body += (Body.Length == 0 ? "" : "\n\n") + response.Body; }
+}

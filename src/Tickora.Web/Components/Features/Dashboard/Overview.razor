@@ -1,0 +1,80 @@
+@page "/"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inherits WorkspacePage
+<PageTitle>Overview · TICKORA</PageTitle>
+<PageHeader Title="A clearer view of your support." Description="Every conversation counts. Here's where things stand." Eyebrow="WORKSPACE OVERVIEW">
+<a href="/tickets/new" class="button primary">
+<Icon Name="plus" Size="17" />Create ticket</a>
+</PageHeader>
+<ErrorState Message="@Error" />
+@if (Loading) {
+<LoadingSkeleton />
+}
+else if (Data is not null) {
+  <div class="overview-context">
+<div>
+<span class="online-dot">
+</span>@(Actor!.Staff ? "Your support workspace, at a glance" : "Your support requests, at a glance")</div>
+<span>
+<Icon Name="clock" Size="14" />Updated @DateTimeOffset.UtcNow.ToString("HH:mm") UTC <AppButton Variant="ghost small" Busy="Busy" OnClick="Refresh">Refresh</AppButton>
+</span>
+</div>
+  <div class="metrics-grid">
+<MetricCard Label="Total tickets" Value="@Data.Total.ToString("N0")" Description="All time · visible to you" IconName="ticket" />
+<MetricCard Label="Active conversations" Value="@Data.Active.ToString("N0")" Description="Open and in progress" IconName="inbox" Tone="blue" />
+<MetricCard Label="Resolved tickets" Value="@Data.Resolved.ToString("N0")" Description="Resolved and closed" IconName="check" Tone="green" />
+<MetricCard Label="SLA overdue" Value="@Data.Overdue.ToString("N0")" Description="Active resolution deadlines" IconName="clock" Tone="amber" />
+</div>
+  <div class="dashboard-charts">
+<TrendPanel Title="Incoming conversations" Description="A little perspective on your recent workload." SeriesLabel="Tickets created" Points="Data.Volume" />
+    <section class="panel queue-panel">
+<div class="panel-heading">
+<div>
+<h2>Across your queues</h2>
+<p>Every request has a place.</p>
+</div>
+<Icon Name="inbox" />
+</div>
+<div class="queue-list">
+@foreach (var q in Data.Queues) {
+<div class="queue-stat">
+<div>
+<span>@q.Label</span>
+<strong>@q.Count</strong>
+</div>
+<div class="progress-track">
+<span style="width: @(100 * q.Count / Math.Max(1, Data.Total))%">
+</span>
+</div>
+</div>
+}@if (Data.Queues.Count == 0) {
+<p class="muted">Queues will appear as tickets arrive.</p>
+}</div>
+<a href="/tickets" class="text-link">Explore all tickets <Icon Name="arrow" Size="16" />
+</a>
+</section>
+</div>
+  <section class="panel">
+<div class="panel-heading">
+<div>
+<h2>Recent tickets <span class="count-pill">@Data.Total</span>
+</h2>
+<p>The latest conversations that need your care.</p>
+</div>
+<a href="/tickets" class="button secondary small">View all tickets <Icon Name="arrow" Size="15" />
+</a>
+</div>
+<TicketTable Rows="Recent" />
+</section>
+  <div class="workspace-note">
+<Icon Name="lock" Size="15" />
+<span>Only tickets you are authorized to access are included. All times are shown in UTC.</span>
+</div>
+}
+@code {
+  private Dashboard? Data;
+  private IReadOnlyList<TicketRow> Recent = [];
+  protected override async Task OnInitializedAsync() => await Refresh();
+  private async Task Refresh() => await Run(async () => { Data = await Queries.DashboardAsync(Actor!, LifetimeToken); Recent = (await Queries.TicketsAsync(Actor!, new(PageSize: 6), LifetimeToken)).Items; });
+}

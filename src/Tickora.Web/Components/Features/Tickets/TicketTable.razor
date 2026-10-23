@@ -1,0 +1,60 @@
+@if (Rows.Count == 0) {
+<EmptyState Title="No tickets in this view" Message="Try another filter, or create a new support ticket." />
+}
+else {
+<div class="table-scroll">
+<table class="ticket-table">
+<thead>
+<tr>
+<th>Ticket / Subject</th>
+<th>Customer</th>
+<th>Status</th>
+<th>Priority</th>
+<th>Assigned to</th>
+<th>Updated</th>
+<th>
+<span class="sr-only">Open</span>
+</th>
+</tr>
+</thead>
+<tbody>
+@foreach (var row in Rows) {
+  <tr @key="row.Id">
+<td>
+<a class="ticket-subject" href="/tickets/@row.Id">
+<small>TK-@row.Number <span>· @row.Queue</span>
+</small>
+<strong>@row.Subject</strong>
+</a>
+</td>
+<td>
+<div class="person">
+<span class="avatar pastel">@row.Customer[..1]</span>@row.Customer</div>
+</td>
+<td>
+<StatusBadge Status="row.Status" />
+</td>
+<td>
+<PriorityBadge Priority="row.Priority" />
+</td>
+<td>
+@if (row.Agent is not null) {
+<div class="person">
+<span class="avatar mini">@row.Agent[..1]</span>@row.Agent</div>
+} else {
+<span class="muted">Unassigned</span>
+}</td>
+<td class="muted nowrap">@row.UpdatedAt.ToString("dd MMM, HH:mm")<small>UTC</small>
+</td>
+<td>
+<a class="icon-button" href="/tickets/@row.Id" aria-label="Open ticket TK-@row.Number">
+<Icon Name="chevron" Size="16" />
+</a>
+</td>
+</tr>
+}
+</tbody>
+</table>
+</div>
+}
+@code { [Parameter] public IReadOnlyList<TicketRow> Rows { get; set; } = []; }

@@ -1,0 +1,16 @@
+# Apply with docker-compose.yml when Windows localhost forwarding is unavailable.
+# TICKORA_WSL_IP is the private address returned by `wsl hostname -I`.
+services:
+  tickora-sqlserver:
+    ports: !override
+      - "${TICKORA_WSL_IP:?Set the private WSL address}:1433:1433"
+  tickora-web:
+    volumes: !override
+      - type: bind
+        source: ./src/Tickora.Web/App_Data
+        target: /app/App_Data
+    ports: !override
+      - "${TICKORA_WSL_IP:?Set the private WSL address}:5181:8080"
+    environment:
+      PublicOrigin: "http://${TICKORA_WSL_IP}:5181"
+      AllowedHosts: "${TICKORA_WSL_IP};localhost;127.0.0.1"

@@ -1,0 +1,86 @@
+@page "/reports"
+@attribute [Authorize(Policy = "Staff")]
+@rendermode InteractiveServer
+@inherits WorkspacePage
+<PageTitle>Reports · TICKORA</PageTitle>
+<PageHeader Title="Make the next conversation better." Description="Real operational data, with room to learn and improve." Eyebrow="SUPPORT REPORTS" />
+<ErrorState Message="@Error" />
+@if (Loading) {
+<LoadingSkeleton />
+} else if (Data is not null) {
+<div class="metrics-grid">
+<MetricCard Label="First response" Value="@Display(Data.FirstResponseHours, " h")" Description="Average elapsed time · selected period" IconName="clock" />
+<MetricCard Label="Resolution time" Value="@Display(Data.ResolutionHours, " h")" Description="Average elapsed time · resolved" IconName="check" Tone="green" />
+<MetricCard Label="SLA compliance" Value="@Display(Data.Compliance, "%")" Description="Both targets met · resolved" IconName="chart" Tone="blue" />
+<MetricCard Label="Customer satisfaction" Value="@Display(Data.Satisfaction, " / 5")" Description="Average submitted rating" IconName="users" Tone="amber" />
+</div>
+<div class="dashboard-charts">
+<section class="panel">
+<div class="panel-heading">
+<div>
+<h2>Conversations by status</h2>
+<p>Authorized tickets in the applied reporting period.</p>
+</div>
+</div>
+<div class="report-bars">
+@foreach (var s in Data.Statuses) {
+<div class="queue-stat">
+<div>
+<span>@s.Label</span>
+<strong>@s.Count</strong>
+</div>
+<div class="progress-track">
+<span style="width: @(100 * s.Count / Math.Max(1, Data.Total))%">
+</span>
+</div>
+</div>
+}</div>
+</section>
+<section class="panel form-panel">
+<h2>Reporting period</h2>
+<p class="form-hint">Apply filters to the summary or download matching tickets. The end date is inclusive.</p>
+<label>From<input type="date" @bind="From" />
+</label>
+<label>Through<input type="date" @bind="Through" />
+</label>
+<label>Queue<select @bind="Queue">
+<option value="">All queues</option>
+@foreach (var q in Lookup?.Queues ?? []) {
+<option value="@q.Id">@q.Name</option>
+}</select>
+</label>
+<label>Status<select @bind="Status">
+<option value="">All statuses</option>
+@foreach (var s in Enum.GetValues<TicketStatus>()) {
+<option value="@s">@StatusBadge.Label(s)</option>
+}</select>
+</label>
+@if (Through < From) {
+<ErrorState Message="End date must follow the start date." />
+} else {
+<AppButton Variant="secondary" Busy="Busy" OnClick="Apply">Apply to summary</AppButton>
+<a href="@ExportUrl" class="button primary" download>
+<Icon Name="download" Size="16" />Export CSV</a>
+}</section>
+</div>
+<div class="overview-context"><span>@Data.Total tickets in this reporting period</span><span>@Data.ActiveAgents active agents across authorized queues</span></div>
+<div class="dashboard-charts">
+  <BreakdownPanel Title="Tickets by category" Description="Created within the applied reporting period." Points="Data.Categories" />
+  <BreakdownPanel Title="Active agent workload" Description="Assigned tickets that still need attention." Points="Data.AgentWorkload" />
+  <BreakdownPanel Title="SLA performance" Description="Both targets must be met to count as compliant." Points="Data.SlaPerformance" />
+  <TrendPanel Title="Resolution trend" Description="Latest resolutions of tickets in the applied period." SeriesLabel="Resolved" Points="Data.ResolutionVolume" />
+  <TrendPanel Title="Incoming ticket volume" Description="Conversations created in the applied period." SeriesLabel="Created" Points="Data.Volume" />
+</div>
+}
+@code {
+  private Dashboard? Data;
+  private Lookups? Lookup;
+  private DateTime From = DateTime.UtcNow.Date.AddDays(-30), Through = DateTime.UtcNow.Date;
+  private string Queue = "", Status = "";
+  private static string Display(double? value, string suffix) => value.HasValue ? value.Value.ToString("0.0") + suffix : "—";
+  private string ExportUrl => $"/api/v1/reports/export?from={Uri.EscapeDataString(From.ToString("yyyy-MM-dd") + "T00:00:00Z")}&to={Uri.EscapeDataString(Through.AddDays(1).ToString("yyyy-MM-dd") + "T00:00:00Z")}" + (Queue.Length > 0 ? $"&queue={Queue}" : "") + (Status.Length > 0 ? $"&status={Status}" : "");
+  private TicketFilter Filter => new(Status: Enum.TryParse<TicketStatus>(Status, out var status) ? status : null,
+    Queue: Guid.TryParse(Queue, out var queue) ? queue : null, From: new DateTimeOffset(From.Date, TimeSpan.Zero), To: new DateTimeOffset(Through.Date.AddDays(1), TimeSpan.Zero));
+  private async Task Apply() => await Run(async () => Data = await Queries.DashboardAsync(Actor!, LifetimeToken, Filter));
+  protected override async Task OnInitializedAsync() => await Run(async () => { Data = await Queries.DashboardAsync(Actor!, LifetimeToken, Filter); Lookup = await Queries.LookupsAsync(Actor!, LifetimeToken); });
+}

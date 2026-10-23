@@ -1,0 +1,21 @@
+<section class="panel">
+  <div class="panel-heading"><div><h2>@Title</h2><p>@Description</p></div></div>
+  <div class="report-bars">
+    @if (Points.Count == 0 || Points.All(p => p.Count == 0))
+    {
+      <p class="form-hint">No matching activity in this period.</p>
+    }
+    @foreach (var point in Points)
+    {
+      <div class="queue-stat">
+        <div><span>@point.Label</span><strong>@point.Count</strong></div>
+        <div class="progress-track"><span style="width: @(100 * point.Count / Math.Max(1, Points.Max(p => p.Count)))%"></span></div>
+      </div>
+    }
+  </div>
+</section>
+@code {
+  [Parameter] public string Title { get; set; } = "";
+  [Parameter] public string Description { get; set; } = "";
+  [Parameter] public IReadOnlyList<CountPoint> Points { get; set; } = [];
+}

@@ -1,0 +1,22 @@
+@inject IClock Clock
+<section class="panel">
+  <h2>Service level</h2>
+  <div class="sla-row @(Ticket.FirstResponseAt == null && Ticket.FirstResponseDue < Clock.UtcNow ? "overdue" : "")">
+    <strong>@(Ticket.FirstResponseAt.HasValue ? "First response recorded" : "First response due")</strong>
+    <span>@((Ticket.FirstResponseAt ?? Ticket.FirstResponseDue).ToString("dd MMM, HH:mm")) UTC</span>
+    @if (Summary.ResponseRemaining.HasValue) { <small class="muted"> · @Remaining(Summary.ResponseRemaining.Value)</small> }
+  </div>
+  <div class="sla-row @(Ticket.ResolutionDue < Clock.UtcNow && Ticket.ResolvedAt == null && !Paused ? "overdue" : "")">
+    <strong>@(Paused ? "Resolution clock paused" : Ticket.ResolvedAt.HasValue ? "Resolution recorded" : "Resolution due")</strong>
+    <span>@((Ticket.ResolvedAt ?? Summary.EffectiveResolutionDue).ToString("dd MMM, HH:mm")) UTC</span>
+    @if (Summary.ResolutionRemaining.HasValue) { <small class="muted"> · @Remaining(Summary.ResolutionRemaining.Value)</small> }
+  </div>
+  <p class="form-hint">Targets use the calendar saved when this ticket was opened. Waiting pauses the resolution clock when its policy permits.</p>
+</section>
+@code {
+  [Parameter, EditorRequired] public Ticket Ticket { get; set; } = default!;
+  private bool Paused => Summary.Paused;
+  private SlaSummary Summary { get; set; } = default!;
+  protected override void OnParametersSet() => Summary = SlaSummary.For(Ticket, Clock.UtcNow);
+  private static string Remaining(TimeSpan value) => value < TimeSpan.Zero ? "Overdue in business time" : $"{(int)value.TotalHours}h {value.Minutes}m business time remaining";
+}

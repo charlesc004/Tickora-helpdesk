@@ -1,0 +1,7 @@
+<span class="badge status-@Status.ToString().ToLowerInvariant()">
+<span class="dot">
+</span>@Label(Status)</span>
+@code {
+  [Parameter] public TicketStatus Status { get; set; }
+  public static string Label(TicketStatus s) => s switch { TicketStatus.InProgress => "In progress", TicketStatus.WaitingForCustomer => "Waiting for customer", _ => s.ToString() };
+}

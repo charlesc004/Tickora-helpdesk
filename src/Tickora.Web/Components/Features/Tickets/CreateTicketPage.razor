@@ -1,0 +1,80 @@
+@page "/tickets/new"
+@attribute [Authorize]
+@rendermode InteractiveServer
+@inherits WorkspacePage
+@inject TicketService Service
+@inject NavigationManager Navigation
+<PageTitle>Create ticket · TICKORA</PageTitle>
+<PageHeader Title="Let's get it sorted." Description="Tell us what you need. We'll take it from here." Eyebrow="NEW CONVERSATION" />
+<ErrorState Message="@Error" />
+@if (Loading) {
+<LoadingSkeleton />
+}
+else if (Lookup is not null) {
+<div class="create-layout">
+<section class="panel form-panel">
+<EditForm Model="Model" OnValidSubmit="Submit" FormName="create-ticket">
+<DataAnnotationsValidator />
+<ValidationSummary />
+<label>Subject<InputText @bind-Value="Model.Subject" placeholder="A short summary of what you need" />
+</label>
+<div class="form-row">
+<label>Support queue<InputSelect @bind-Value="Model.QueueId">
+<option value="@Guid.Empty">Choose a queue</option>
+@foreach (var q in Lookup.Queues) {
+<option value="@q.Id">@q.Name</option>
+}</InputSelect>
+</label>
+<label>Category<InputSelect @bind-Value="Model.CategoryId">
+<option value="@Guid.Empty">Choose a category</option>
+@foreach (var c in Lookup.Categories) {
+<option value="@c.Id">@c.Name</option>
+}</InputSelect>
+</label>
+</div>
+<label>Priority<InputSelect @bind-Value="Model.Priority">
+@foreach (var p in Enum.GetValues<TicketPriority>()) {
+<option value="@p">@p</option>
+}</InputSelect>
+</label>
+<label>How can we help?<InputTextArea @bind-Value="Model.Description" rows="8" placeholder="Include the details, steps you've tried, and what you expected to happen." />
+</label>
+<p class="form-hint">Please leave out passwords, payment details, and access tokens. You can add protected attachments after creating the ticket.</p>
+<div class="form-actions">
+<a href="/tickets" class="button secondary">Cancel</a>
+<AppButton Type="submit" Busy="Busy">Create ticket <Icon Name="arrow" Size="16" />
+</AppButton>
+</div>
+</EditForm>
+</section>
+<aside>
+<div class="panel tip-panel">
+<span class="metric-icon indigo">
+<Icon Name="book" />
+</span>
+<h2>A quick answer may be here.</h2>
+<p>Browse our guides while your support request takes shape.</p>
+@foreach (var article in Suggestions) {
+<a href="/knowledge/@article.Slug" class="article-suggestion">@article.Title<Icon Name="chevron" Size="15" />
+</a>
+}</div>
+</aside>
+</div>
+}
+@code {
+  private TicketForm Model = new();
+  private Lookups? Lookup;
+  private IReadOnlyList<KnowledgeArticle> Articles = [];
+  private IReadOnlyList<KnowledgeArticle> Suggestions => ArticleSuggestions.Rank(Articles, Model.Subject, Lookup?.Categories.FirstOrDefault(c => c.Id == Model.CategoryId.ToString())?.Name);
+  private readonly Guid Submission = Guid.NewGuid();
+  protected override async Task OnInitializedAsync() => await Run(async () => { Lookup = await Queries.LookupsAsync(Actor!, LifetimeToken); Articles = await Queries.ArticlesAsync(null, false, Actor, LifetimeToken); });
+  private async Task Submit() => await Run(async () => { var id = await Service.CreateAsync(new(Model.Subject, Model.Description, Model.QueueId, Model.CategoryId, Model.Priority, Submission), LifetimeToken); Navigation.NavigateTo($"/tickets/{id}"); });
+  private sealed class TicketForm
+  {
+    [Required, StringLength(180, MinimumLength = 5)] public string Subject { get; set; } = "";
+    [Required, StringLength(10000, MinimumLength = 10)] public string Description { get; set; } = "";
+    public Guid QueueId { get; set; }
+    public Guid CategoryId { get; set; }
+    public TicketPriority Priority { get; set; } = TicketPriority.Medium;
+  }
+}

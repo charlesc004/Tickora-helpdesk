@@ -1,0 +1,62 @@
+  <aside class="sidebar" aria-label="Workspace navigation">
+    <a href="/" class="brand">
+<span class="brand-mark">
+<Icon Name="ticket" Size="23" />
+</span>TICKORA<span class="brand-period">.</span>
+</a>
+    <div class="organization">
+<div class="org-avatar">N</div>
+<div>
+<strong>Northstar Studio</strong>
+<small>Support workspace · fictional demo</small>
+</div>
+</div>
+    <div class="nav-label">WORKSPACE</div>
+    <nav>
+      <NavLink href="/" Match="NavLinkMatch.All">
+<Icon Name="grid" />Overview</NavLink>
+      <NavLink href="/tickets">
+<Icon Name="ticket" />All tickets</NavLink>
+      <AuthorizeView Roles="Agent,Admin">
+<NavLink href="/tickets?mine=true">
+<Icon Name="inbox" />My queue</NavLink>
+</AuthorizeView>
+      <AuthorizeView Roles="Agent,Admin">
+<NavLink href="/customers">
+<Icon Name="users" />Customers</NavLink>
+</AuthorizeView>
+      <NavLink href="/knowledge">
+<Icon Name="book" />Knowledge base</NavLink>
+      <AuthorizeView Roles="Agent,Admin">
+<NavLink href="/reports">
+<Icon Name="chart" />Reports</NavLink>
+</AuthorizeView>
+      <NavLink href="/notifications">
+<Icon Name="bell" />Notifications</NavLink>
+    </nav>
+    <AuthorizeView Roles="Admin">
+<div class="nav-label">MANAGE</div>
+<nav>
+<NavLink href="/admin/team">
+<Icon Name="users" />Team &amp; queues</NavLink>
+<NavLink href="/admin/sla">
+<Icon Name="clock" />SLA policies</NavLink>
+</nav>
+</AuthorizeView>
+    <div class="sidebar-bottom">
+<div class="support-note">
+<span class="online-dot">
+</span>
+<strong>A little clarity. A lot of care.</strong>
+<p>Smarter support.<br />Better experiences.</p>
+<a href="/knowledge">Explore the help center <Icon Name="arrow" Size="15" />
+</a>
+</div>
+<nav>
+<NavLink href="/settings">
+<Icon Name="settings" />Account settings</NavLink>
+</nav>
+<div class="sidebar-footer">TICKORA <span>© @DateTime.UtcNow.Year</span>
+</div>
+</div>
+  </aside>

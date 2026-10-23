@@ -1,0 +1,64 @@
+@page "/knowledge/manage"
+@attribute [Authorize(Policy = "Staff")]
+@rendermode InteractiveServer
+@inherits WorkspacePage
+@inject IAdministration Admin
+<PageTitle>Manage knowledge · TICKORA</PageTitle>
+<PageHeader Title="Turn answers into shared knowledge." Description="Plain text guides, safely rendered for every customer." Eyebrow="KNOWLEDGE MANAGEMENT" />
+<ErrorState Message="@Error" />
+@if (Success) {
+<div class="alert success">Saved successfully.</div>
+}
+@if (Loading) {
+<LoadingSkeleton />
+} else {
+<div class="create-layout">
+<section class="panel form-panel">
+<h2>@(Editing.RowVersion.Length == 0 ? "Create an article" : "Edit article")</h2>
+<form @onsubmit="Save" @onsubmit:preventDefault>
+<label>Title<input @bind="Editing.Title" required minlength="5" maxlength="180" />
+</label>
+<label>URL slug<input @bind="Editing.Slug" required pattern="[a-z0-9]+(-[a-z0-9]+)*" maxlength="180" />
+</label>
+<label>Category<input @bind="Editing.Category" required maxlength="100" />
+</label>
+<label>Summary<textarea @bind="Editing.Summary" required maxlength="400" rows="2">
+</textarea>
+</label>
+<label>Article content<textarea @bind="Editing.Body" required minlength="20" maxlength="30000" rows="12">
+</textarea>
+</label>
+<label>
+<input type="checkbox" @bind="Editing.Published" />Published</label>
+<label>
+<input type="checkbox" @bind="Editing.Featured" />Featured</label>
+<div class="form-actions">
+<AppButton Variant="secondary" OnClick="NewArticle">New article</AppButton>
+<AppButton Type="submit" Busy="Busy">Save article</AppButton>
+</div>
+</form>
+</section>
+<aside>
+<section class="panel form-panel">
+<h2>Your articles</h2>
+@foreach (var a in Articles) {
+<div class="article-suggestion">
+<span>@a.Title<small class="muted"> · @(a.Published ? "Published" : "Draft")</small>
+</span>
+<AppButton Variant="ghost small" OnClick="() => Edit(a)">Edit</AppButton>
+</div>
+}</section>
+<SavedResponsesManager />
+</aside>
+</div>
+}
+@code {
+  private IReadOnlyList<KnowledgeArticle> Articles = [];
+  private KnowledgeArticle Editing = new();
+  private bool Success;
+
+  protected override async Task OnInitializedAsync() => await Run(async () => Articles = await Queries.ArticlesAsync(null, true, Actor, LifetimeToken));
+  private void NewArticle() { Editing = new(); Success = false; }
+  private void Edit(KnowledgeArticle a) { Editing = new() { Id = a.Id, Title = a.Title, Slug = a.Slug, Category = a.Category, Summary = a.Summary, Body = a.Body, Published = a.Published, Featured = a.Featured, RowVersion = a.RowVersion }; Success = false; }
+  private async Task Save() => await Run(async () => { await Admin.SaveArticleAsync(Editing, LifetimeToken); Articles = await Queries.ArticlesAsync(null, true, Actor, LifetimeToken); Editing = new(); Success = true; });
+}

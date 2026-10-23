@@ -1,0 +1,20 @@
+<div class="conversation">
+@if (Messages.Count == 0) {
+<p class="muted">The conversation starts here. Add a reply below.</p>
+}
+@foreach (var m in Messages.OrderBy(x => x.CreatedAt).ThenBy(x => x.Id)) {
+  <div class="message @(m.Visibility == MessageVisibility.Internal ? "internal" : "")" @key="m.Id">
+<span class="avatar">@m.AuthorName.FirstOrDefault()</span>
+<div class="message-body">
+<div class="message-heading">
+<strong>@m.AuthorName</strong>
+@if (m.Visibility == MessageVisibility.Internal) {
+<span class="internal-label">Internal note</span>
+}<time>@m.CreatedAt.ToString("dd MMM, HH:mm") UTC</time>
+</div>
+<p dir="auto">@m.Body</p>
+</div>
+</div>
+}
+</div>
+@code { [Parameter] public IReadOnlyList<TicketMessage> Messages { get; set; } = []; }

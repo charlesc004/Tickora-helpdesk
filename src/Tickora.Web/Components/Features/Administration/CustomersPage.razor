@@ -1,0 +1,63 @@
+@page "/customers"
+@attribute [Authorize(Policy = "Staff")]
+@rendermode InteractiveServer
+@inherits WorkspacePage
+@inject IAdministration Admin
+<PageTitle>Customers · TICKORA</PageTitle>
+<PageHeader Title="People behind the conversations." Description="Customer context, with access limited to your support queues." Eyebrow="CUSTOMER DIRECTORY" />
+<ErrorState Message="@Error" />
+<section class="panel">
+<div class="filters">
+<form class="search-field" @onsubmit="Search" @onsubmit:preventDefault>
+<Icon Name="search" Size="18" />
+<input aria-label="Search customers" @bind="Term" placeholder="Search by name or email…" />
+<button class="button ghost small" type="submit">Search</button>
+</form>
+</div>
+@if (Loading) {
+<LoadingSkeleton />
+} else if (Customers is not null) { @if (Customers.Items.Count == 0) {
+<EmptyState Title="No customers found" />
+} else {
+<div class="table-scroll">
+<table class="ticket-table">
+<thead>
+<tr>
+<th>Customer</th>
+<th>Email</th>
+<th>All tickets</th>
+<th>Active</th>
+@if (Actor!.Admin) {
+<th>Account management</th>
+}</tr>
+</thead>
+<tbody>
+@foreach (var c in Customers.Items) {
+<tr>
+<td>
+<div class="person">
+<span class="avatar pastel">@c.Name[..1]</span>@c.Name</div>
+</td>
+<td>@c.Email</td>
+<td>@c.Tickets</td>
+<td>@c.ActiveTickets</td>
+@if (Actor!.Admin) {
+<td>
+<AppButton Variant="ghost small" Busy="Busy" OnClick="() => Promote(c.Id)">Make support agent</AppButton>
+</td>
+}</tr>
+}</tbody>
+</table>
+</div>
+}<AppPagination Noun="customers" Page="Customers.Number" Size="Customers.Size" Total="Customers.Total" Changed="ChangePage" />
+}</section>
+@code {
+  private Page<CustomerRow>? Customers;
+  private string Term = "";
+  private int PageNumber = 1;
+  protected override async Task OnInitializedAsync() => await Load();
+  private async Task Load() => await Run(async () => Customers = await Queries.CustomersAsync(Actor!, Term.Length == 0 ? null : Term, PageNumber, LifetimeToken));
+  private async Task Search() { PageNumber = 1; await Load(); }
+  private async Task ChangePage(int page) { PageNumber = page; await Load(); }
+  private async Task Promote(string id) => await Run(async () => { await Admin.SetRoleAsync(id, "Agent", LifetimeToken); Customers = await Queries.CustomersAsync(Actor!, Term.Length == 0 ? null : Term, PageNumber, LifetimeToken); });
+}

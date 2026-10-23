@@ -1,0 +1,16 @@
+<Router AppAssembly="typeof(Program).Assembly">
+  <Found Context="routeData">
+    <AuthorizeRouteView RouteData="routeData" DefaultLayout="typeof(DashboardLayout)">
+      <NotAuthorized>
+<RedirectToLogin />
+</NotAuthorized>
+    </AuthorizeRouteView>
+    <FocusOnNavigate RouteData="routeData" Selector="h1" />
+  </Found>
+  <NotFound>
+<LayoutView Layout="typeof(PublicLayout)">
+<EmptyState Title="Page not found" Message="The page may have moved. Return to your workspace to continue." />
+<a href="/" class="button primary">Go to workspace</a>
+</LayoutView>
+</NotFound>
+</Router>

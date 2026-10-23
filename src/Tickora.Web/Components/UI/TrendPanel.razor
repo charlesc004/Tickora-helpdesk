@@ -1,0 +1,21 @@
+<section class="panel volume-panel">
+  <div class="panel-heading"><div><h2>@Title</h2><p>@Description</p></div><span class="subtle-tag">Last 14 days</span></div>
+  <div class="chart-legend"><span class="legend-dot"></span>@SeriesLabel<span class="chart-total">@Points.Sum(x => x.Count)<small> @SeriesLabel.ToLowerInvariant()</small></span></div>
+  <div class="bar-chart" role="img" aria-label="@Title">
+    @foreach (var point in Points)
+    {
+      <div class="bar-column" title="@($"{point.Label}: {point.Count}")">
+        <span class="bar-number">@point.Count</span>
+        <div class="chart-bar" style="height: @(Math.Max(2, point.Count * 130.0 / Math.Max(1, Points.Max(x => x.Count))).ToString("0", System.Globalization.CultureInfo.InvariantCulture))px"></div>
+        <small>@point.Label[..2]</small>
+      </div>
+    }
+  </div>
+  <div class="chart-axis"><span>@Points.FirstOrDefault()?.Label</span><span>@Points.LastOrDefault()?.Label</span></div>
+</section>
+@code {
+  [Parameter] public string Title { get; set; } = "";
+  [Parameter] public string Description { get; set; } = "";
+  [Parameter] public string SeriesLabel { get; set; } = "Tickets";
+  [Parameter] public IReadOnlyList<CountPoint> Points { get; set; } = [];
+}

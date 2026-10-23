@@ -1,0 +1,19 @@
+@inherits LayoutComponentBase
+
+<div class="app-shell">
+  <a class="skip-link" href="#main-content">Skip to main content</a>
+  <input id="sidebar-toggle" class="sidebar-toggle" type="checkbox" aria-label="Toggle navigation" />
+  <label class="sidebar-backdrop" for="sidebar-toggle" aria-label="Close navigation"></label>
+  <WorkspaceSidebar />
+  <div class="main-shell">
+    <WorkspaceTopbar />
+    <main id="main-content" class="main-content" tabindex="-1">@Body</main>
+    <footer class="page-footer">
+<span>Made for better conversations.</span>
+<a href="/knowledge">Help center <Icon Name="arrow" Size="13" />
+</a>
+</footer>
+  </div>
+</div>
+<div id="blazor-error-ui">The connection was interrupted. <a href="" class="reload">Reload the workspace</a>
+</div>
